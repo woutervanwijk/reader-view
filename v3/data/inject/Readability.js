@@ -122,17 +122,17 @@ Readability.prototype = {
   REGEXPS: {
     // NOTE: These two regular expressions are duplicated in
     // Readability-readerable.js. Please keep both copies in sync.
-    unlikelyCandidates: /-ad-|ai2html|banner|breadcrumbs|combx|comment|community|cover-wrap|credentials|date|hide|hidden|disqus|extra|footer|gdpr|legends|nav|paywall|teaser|meta|menu|related|remark|replies|rss|shoutbox|sidebar|skyscraper|social|sponsor|supplemental|ad-break|agegate|pagination|pager|popup|share|sharing|yom-remote|byline|topbar|article-meta/i,
+    unlikelyCandidates: /-ad-|ai2html|banner|breadcrumbs|combx|comment|community|cover-wrap|credentials|date|hide|hidden|disqus|extra|footer|gdpr|legends|nav|paywall|meta|menu|related|remark|replies|rss|shoutbox|sidebar|skyscraper|social|sponsor|supplemental|ad-break|agegate|pagination|pager|popup|share|sharing|yom-remote|byline|topbar|article-meta/i,
     okMaybeItsACandidate: /and|article|body|column|content|main|shadow|header|summary/i,
 
     positive: /article|body|content|entry|header|hentry|h-entry|intro|intro|intro|intro|main|main-article|main-content|page|pagination|primary|post|text|blog|story|summary/i,
-    negative: /-ad-|affiliate|credentials|controls|date|desktop|hidden|nav|^hid$| hid$| hid |^hid |hide|banner|login|gate|combx|comment|com-|contact|foot|footer|footnote|gdpr|icon|^icon|^icon|icons$|icons|masthead|media|meta|paywall|teaser|nav|outbrain|promo|related|scroll|share|sharing|shoutbox|sidebar|skyscraper|sponsor|shopping|tags|tool|widget|video-player|video|jw-player|modal|carousel|overlay|byline/i,
-    extraneous: /print|affiliate|archive|button|comment|controls|discuss|e[\-]?mail|meta|icons|share|reply|all|login|sign|single|utility|icons|nav|teaser|video-player|jw-player|modal|video|paidcontent|carousel|overlay|social|topbar|article-meta/i,
+    negative: /-ad-|affiliate|credentials|controls|date|desktop|hidden|nav|^hid$| hid$| hid |^hid |hide|banner|login|gate|combx|comment|com-|contact|foot|footer|footnote|gdpr|icon|^icon|^icon|icons$|icons|masthead|media|meta|paywall|nav|outbrain|promo|related|scroll|share|sharing|shoutbox|sidebar|skyscraper|sponsor|shopping|tags|tool|widget|video-player|video|jw-player|jw-aspect|modal|carousel|overlay|byline/i,
+    extraneous: /print|affiliate|archive|button|comment|controls|discuss|e[\-]?mail|meta|icons|share|reply|all|login|sign|single|utility|icons|nav|video-player|jw-player|modal|video|paidcontent|carousel|overlay|social|topbar|article-meta|onetrust-consent-sdk/i,
     byline: /byline|author|dateline|credentials|writtenby|p-author/i,
     replaceFonts: /<(\/?)font[^>]*>/gi,
     normalize: /\s{2,}/g,
     videos: /\/\/(www\.)?((dailymotion|youtube|youtube-nocookie|player\.vimeo|v\.qq)\.com|(archive|upload\.wikimedia)\.org|player\.twitch\.tv)/i,
-    shareElements: /(\b|_)(share|sharedaddy|social)(\b|_)/i,
+    shareElements: /(\b|_)(share|sharedaddy|social|sharebar)(\b|_)/i,
     nextLink: /(next|weiter|continue|>([^\|]|$)|»([^\|]|$))/i,
     prevLink: /(prev|earl|old|new|<|«)/i,
     tokenize: /\W+/g,
@@ -145,7 +145,7 @@ Readability.prototype = {
     jsonLdArticleTypes: /^Article|AdvertiserContentArticle|NewsArticle|AnalysisNewsArticle|AskPublicNewsArticle|BackgroundNewsArticle|OpinionNewsArticle|ReportageNewsArticle|ReviewNewsArticle|Report|SatiricalArticle|ScholarlyArticle|MedicalScholarlyArticle|SocialMediaPosting|BlogPosting|LiveBlogPosting|DiscussionForumPosting|TechArticle|APIReference$/
   },
 
-  NODES_TO_CLEAN_FIRST: ["object", "embed", "footer", "link", "aside", "nav", ".icons", ".byline", ".sub-nav", ".identity", ".logo", ".video-player", ".jw-player", ".video" ],
+  NODES_TO_CLEAN_FIRST: ["object", "embed", "footer", "link", "aside", "nav", ".icons", ".byline", ".sub-nav", ".identity", ".logo", ".video-player", ".jw-player", ".jw-wrapper", ".video" ],
   NODES_TO_CLEAN_SECOND: [ "iframe", "input", "textarea", "select", "button", "svg", "a[href^='#']"],
 
   UNLIKELY_ROLES: [ "menu", "menubar", "complementary", "navigation", "alert", "alertdialog", "dialog", "nav" ],
