@@ -44,6 +44,7 @@ function Readability(doc, options) {
   this._attempts = [];
 
   // Configurable options
+  // this._debug = true;
   this._debug = !!options.debug;
   this._maxElemsToParse = options.maxElemsToParse || this.DEFAULT_MAX_ELEMS_TO_PARSE;
   this._nbTopCandidates = options.nbTopCandidates || this.DEFAULT_N_TOP_CANDIDATES;
@@ -111,7 +112,7 @@ Readability.prototype = {
   DEFAULT_N_TOP_CANDIDATES: 5,
 
   // Element tags to score by default.
-  DEFAULT_TAGS_TO_SCORE: "section,h2,h3,h4,h5,h6,p,td,pre".toUpperCase().split(","),
+  DEFAULT_TAGS_TO_SCORE: "section,h2,h3,h4,h5,h6,p,td,pre,summary,article,header,main".toUpperCase().split(","),
 
   // The default number of chars an article must have in order to return a result
   DEFAULT_CHAR_THRESHOLD: 500,
@@ -121,17 +122,17 @@ Readability.prototype = {
   REGEXPS: {
     // NOTE: These two regular expressions are duplicated in
     // Readability-readerable.js. Please keep both copies in sync.
-    unlikelyCandidates: /-ad-|ai2html|banner|breadcrumbs|combx|comment|community|cover-wrap|disqus|extra|footer|gdpr|header|legends|menu|related|remark|replies|rss|shoutbox|sidebar|skyscraper|social|sponsor|supplemental|ad-break|agegate|pagination|pager|popup|yom-remote/i,
-    okMaybeItsACandidate: /and|article|body|column|content|main|shadow/i,
+    unlikelyCandidates: /-ad-|ai2html|banner|breadcrumbs|combx|comment|community|cover-wrap|credentials|date|hide|hidden|disqus|extra|footer|gdpr|legends|nav|paywall|teaser|meta|menu|related|remark|replies|rss|shoutbox|sidebar|skyscraper|social|sponsor|supplemental|ad-break|agegate|pagination|pager|popup|share|sharing|yom-remote|byline/i,
+    okMaybeItsACandidate: /and|article|body|column|content|main|shadow|header|summary/i,
 
-    positive: /article|body|content|entry|hentry|h-entry|main|page|pagination|post|text|blog|story/i,
-    negative: /-ad-|hidden|^hid$| hid$| hid |^hid |banner|combx|comment|com-|contact|foot|footer|footnote|gdpr|masthead|media|meta|outbrain|promo|related|scroll|share|shoutbox|sidebar|skyscraper|sponsor|shopping|tags|tool|widget/i,
-    extraneous: /print|archive|comment|discuss|e[\-]?mail|share|reply|all|login|sign|single|utility/i,
-    byline: /byline|author|dateline|writtenby|p-author/i,
+    positive: /article|body|content|entry|header|hentry|h-entry|intro|intro|intro|intro|main|main-article|main-content|page|pagination|primary|post|text|blog|story|summary/i,
+    negative: /-ad-|affiliate|credentials|controls|date|desktop|hidden|nav|^hid$| hid$| hid |^hid |hide|banner|login|gate|combx|comment|com-|contact|foot|footer|footnote|gdpr|icon|^icon|^icon|icons$|icons|masthead|media|meta|paywall|teaser|nav|outbrain|promo|related|scroll|share|sharing|shoutbox|sidebar|skyscraper|sponsor|shopping|tags|tool|widget|video-player|video|jw-player|modal|carousel|overlay|byline/i,
+    extraneous: /print|affiliate|archive|button|comment|controls|discuss|e[\-]?mail|meta|icons|share|reply|all|login|sign|single|utility|icons|nav|teaser|video-player|jw-player|modal|video|paidcontent|carousel|overlay|social/i,
+    byline: /byline|author|dateline|credentials|writtenby|p-author/i,
     replaceFonts: /<(\/?)font[^>]*>/gi,
     normalize: /\s{2,}/g,
     videos: /\/\/(www\.)?((dailymotion|youtube|youtube-nocookie|player\.vimeo|v\.qq)\.com|(archive|upload\.wikimedia)\.org|player\.twitch\.tv)/i,
-    shareElements: /(\b|_)(share|sharedaddy)(\b|_)/i,
+    shareElements: /(\b|_)(share|sharedaddy|social)(\b|_)/i,
     nextLink: /(next|weiter|continue|>([^\|]|$)|»([^\|]|$))/i,
     prevLink: /(prev|earl|old|new|<|«)/i,
     tokenize: /\W+/g,
@@ -144,7 +145,7 @@ Readability.prototype = {
     jsonLdArticleTypes: /^Article|AdvertiserContentArticle|NewsArticle|AnalysisNewsArticle|AskPublicNewsArticle|BackgroundNewsArticle|OpinionNewsArticle|ReportageNewsArticle|ReviewNewsArticle|Report|SatiricalArticle|ScholarlyArticle|MedicalScholarlyArticle|SocialMediaPosting|BlogPosting|LiveBlogPosting|DiscussionForumPosting|TechArticle|APIReference$/
   },
 
-  UNLIKELY_ROLES: [ "menu", "menubar", "complementary", "navigation", "alert", "alertdialog", "dialog" ],
+  UNLIKELY_ROLES: [ "menu", "menubar", "complementary", "navigation", "alert", "alertdialog", "dialog", "nav" ],
 
   DIV_TO_P_ELEMS: new Set([ "BLOCKQUOTE", "DL", "DIV", "IMG", "OL", "P", "PRE", "TABLE", "UL" ]),
 
@@ -431,6 +432,7 @@ Readability.prototype = {
   _simplifyNestedElements: function(articleContent) {
     var node = articleContent;
 
+    var allInnerTexts = [];
     while (node) {
       if (node.parentNode && ["DIV", "SECTION"].includes(node.tagName) && !(node.id && node.id.startsWith("readability"))) {
         if (this._isElementWithoutContent(node)) {
@@ -444,6 +446,34 @@ Readability.prototype = {
           node.parentNode.replaceChild(child, node);
           node = child;
           continue;
+        }
+      }
+
+      // filter out double text. especially check captions
+      var testTextNode = false;
+      if (node.parentNode && (node.childNodes.length == 1 || node.tagName.toUpperCase() == 'FIGCAPTION')) {
+        console.log('cap',node.tagName);
+        for (var i = 0; i < node.childNodes.length; i++) {
+         if(node.childNodes[i].nodeType == Node.TEXT_NODE) 
+          testTextNode = true;
+        }
+      }
+      if(testTextNode) {
+        var innerText = this._getInnerText(node)?.toLowerCase() ?? '';
+        console.log('inner ', innerText);
+          var foundInnerText = false;
+          console.log('allinner ', allInnerTexts);
+          if(innerText && innerText.length > 5) {
+          allInnerTexts.forEach((el) => {
+            if(el == innerText ) foundInnerText = true;
+          });
+
+          if (foundInnerText) {
+            console.log('foundinner ', innerText);      
+            node = this._removeAndGetNext(node);
+            continue;
+          }
+          allInnerTexts.push(innerText);
         }
       }
 
@@ -680,6 +710,16 @@ Readability.prototype = {
     this._clean(articleContent, "footer");
     this._clean(articleContent, "link");
     this._clean(articleContent, "aside");
+    this._clean(articleContent, "nav");
+
+    this._clean(articleContent, ".icons");
+    this._clean(articleContent, ".byline");
+    this._clean(articleContent, ".sub-nav");
+    this._clean(articleContent, ".identity");
+    this._clean(articleContent, ".logo");
+    this._clean(articleContent, ".video-player");
+    this._clean(articleContent, ".jw-player");
+    this._clean(articleContent, ".video");
 
     // Clean out elements with little content that have "share" in their id/class combinations from final top candidates,
     // which means we don't remove the top candidates even they have "share".
@@ -697,6 +737,8 @@ Readability.prototype = {
     this._clean(articleContent, "textarea");
     this._clean(articleContent, "select");
     this._clean(articleContent, "button");
+    this._clean(articleContent, "svg");
+    this._clean(articleContent, "a[href^='#']");
     this._cleanHeaders(articleContent);
 
     // Do these last as the previous stuff may have removed junk
@@ -752,6 +794,9 @@ Readability.prototype = {
 
     switch (node.tagName) {
       case "DIV":
+      case "MAIN":
+      case "HEADER":
+      case "ARTICLE":
         node.readability.contentScore += 5;
         break;
 
@@ -822,6 +867,8 @@ Readability.prototype = {
   // works the way that it splits both texts into words and then finds words that are unique in second text
   // the result is given by the lower length of unique parts
   _textSimilarity: function(textA, textB) {
+    if (!textA || !textB) return 0;
+    if (Math.abs(textA.length - textB.length) > 25) return 0;
     var tokensA = textA.toLowerCase().split(this.REGEXPS.tokenize).filter(Boolean);
     var tokensB = textB.toLowerCase().split(this.REGEXPS.tokenize).filter(Boolean);
     if (!tokensA.length || !tokensB.length) {
@@ -881,7 +928,15 @@ Readability.prototype = {
       return null;
     }
 
+    var fullArticleText = document.body.innerText;
+
+    if(fullArticleText.length) {
+      fullArticleText = fullArticleText.split(/[\r\n]+/).filter((el) => el.length > 50);
+    }
+    // console.log('full ', fullArticleText);
+
     var pageCacheHtml = page.innerHTML;
+
 
     while (true) {
       this.log("Starting grabArticle loop");
@@ -893,18 +948,22 @@ Readability.prototype = {
       var elementsToScore = [];
       var node = this._doc.documentElement;
 
-      let shouldRemoveTitleHeader = true;
-
       while (node) {
 
         if (node.tagName === "HTML") {
           this._articleLang = node.getAttribute("lang");
         }
-
+        
         var matchString = node.className + " " + node.id;
 
         if (!this._isProbablyVisible(node)) {
           this.log("Removing hidden node - " + matchString);
+          node = this._removeAndGetNext(node);
+          continue;
+        }
+
+        // User is not able to see elements applied with both "aria-modal = true" and "role = dialog"
+        if (node.getAttribute("aria-modal") == "true" && node.getAttribute("role") == "dialog") {
           node = this._removeAndGetNext(node);
           continue;
         }
@@ -915,9 +974,8 @@ Readability.prototype = {
           continue;
         }
 
-        if (shouldRemoveTitleHeader && this._headerDuplicatesTitle(node)) {
-          this.log("Removing header: ", node.textContent.trim(), this._articleTitle.trim());
-          shouldRemoveTitleHeader = false;
+        if (this._isTitleDuplicate(node)) {
+          this.log("Removing duplicate titles: ", node.textContent.trim(), this._articleTitle.trim());
           node = this._removeAndGetNext(node);
           continue;
         }
@@ -1003,6 +1061,8 @@ Readability.prototype = {
        * A score is determined by things like number of commas, class names, etc. Maybe eventually link density.
       **/
       var candidates = [];
+      var elementsCounter = 0;
+
       this._forEachNode(elementsToScore, function(elementToScore) {
         if (!elementToScore.parentNode || typeof(elementToScore.parentNode.tagName) === "undefined")
           return;
@@ -1016,9 +1076,11 @@ Readability.prototype = {
         var ancestors = this._getNodeAncestors(elementToScore, 5);
         if (ancestors.length === 0)
           return;
+        
+        elementsCounter++;
 
         var contentScore = 0;
-
+        
         // Add a point for the paragraph itself as a base.
         contentScore += 1;
 
@@ -1027,6 +1089,20 @@ Readability.prototype = {
 
         // For every 100 characters in this paragraph, add another point. Up to 3 points.
         contentScore += Math.min(Math.floor(innerText.length / 100), 3);
+      
+        // Lessen the score based on the number of candidates already found, further down
+        if (innerText.split(" ").length > 10) {
+          contentScore -= Math.floor(candidates.length / 2);
+        }
+
+        if(innerText.length > 100 && elementsCounter < 10) 
+          fullArticleText.forEach((el) => {
+            if (el.length > 5 && innerText.indexOf(el) != -1) {
+              var extra = Math.max(Math.max(0, 10 * (10 - elementsCounter)), 10);
+              // console.log('add ', extra, innerText);
+              contentScore += extra;
+            }
+          });
 
         // Initialize and score ancestors.
         this._forEachNode(ancestors, function(ancestor, level) {
@@ -1081,6 +1157,8 @@ Readability.prototype = {
       var topCandidate = topCandidates[0] || null;
       var neededToCreateTopCandidate = false;
       var parentOfTopCandidate;
+
+      console.log('Top', topCandidates);
 
       // If we still have no top candidate, just use the body as a last resort.
       // We also have to copy the body node so it is something we can modify.
@@ -1642,12 +1720,7 @@ Readability.prototype = {
    * @param Element
   **/
   _removeScripts: function(doc) {
-    this._removeNodes(this._getAllNodesWithTag(doc, ["script"]), function(scriptNode) {
-      scriptNode.nodeValue = "";
-      scriptNode.removeAttribute("src");
-      return true;
-    });
-    this._removeNodes(this._getAllNodesWithTag(doc, ["noscript"]));
+    this._removeNodes(this._getAllNodesWithTag(doc, ["script", "noscript"]));
   },
 
   /**
@@ -2136,6 +2209,21 @@ Readability.prototype = {
           (!isList && weight < 25 && linkDensity > 0.2) ||
           (weight >= 25 && linkDensity > 0.5) ||
           ((embedCount === 1 && contentLength < 75) || embedCount > 1);
+        // Allow simple lists of images to remain in pages
+        if (isList && haveToRemove) {
+          for (var x = 0; x < node.children.length; x++) {
+            let child = node.children[x];
+            // Don't filter in lists with li's that contain more than one child
+            if (child.children.length > 1) {
+              return haveToRemove;
+            }
+          }
+          li_count = node.getElementsByTagName("li").length;
+          // Only allow the list to remain if every li contains an image
+          if (img == li_count) {
+            return false;
+          }
+        }
         return haveToRemove;
       }
       return false;
@@ -2185,13 +2273,13 @@ Readability.prototype = {
    * @param Element  the node to check.
    * @return boolean indicating whether this is a title-like header.
    */
-  _headerDuplicatesTitle: function(node) {
-    if (node.tagName != "H1" && node.tagName != "H2") {
-      return false;
-    }
+  _isTitleDuplicate: function(node) {
     var heading = this._getInnerText(node, false);
-    this.log("Evaluating similarity of header:", heading, this._articleTitle);
-    return this._textSimilarity(this._articleTitle, heading) > 0.75;
+    // this.log("Evaluating similarity of text and title:", heading, this._articleTitle);
+    if(heading.length > 20) {
+      return this._textSimilarity(this._articleTitle, heading) > 0.75;
+    }
+    else return false;
   },
 
   _flagIsActive: function(flag) {
