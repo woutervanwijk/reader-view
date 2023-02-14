@@ -122,12 +122,12 @@ Readability.prototype = {
   REGEXPS: {
     // NOTE: These two regular expressions are duplicated in
     // Readability-readerable.js. Please keep both copies in sync.
-    unlikelyCandidates: /-ad-|ai2html|banner|breadcrumbs|combx|comment|community|cover-wrap|credentials|date|hide|hidden|disqus|extra|footer|gdpr|legends|nav|paywall|teaser|meta|menu|related|remark|replies|rss|shoutbox|sidebar|skyscraper|social|sponsor|supplemental|ad-break|agegate|pagination|pager|popup|share|sharing|yom-remote|byline/i,
+    unlikelyCandidates: /-ad-|ai2html|banner|breadcrumbs|combx|comment|community|cover-wrap|credentials|date|hide|hidden|disqus|extra|footer|gdpr|legends|nav|paywall|teaser|meta|menu|related|remark|replies|rss|shoutbox|sidebar|skyscraper|social|sponsor|supplemental|ad-break|agegate|pagination|pager|popup|share|sharing|yom-remote|byline|topbar|article-meta/i,
     okMaybeItsACandidate: /and|article|body|column|content|main|shadow|header|summary/i,
 
     positive: /article|body|content|entry|header|hentry|h-entry|intro|intro|intro|intro|main|main-article|main-content|page|pagination|primary|post|text|blog|story|summary/i,
     negative: /-ad-|affiliate|credentials|controls|date|desktop|hidden|nav|^hid$| hid$| hid |^hid |hide|banner|login|gate|combx|comment|com-|contact|foot|footer|footnote|gdpr|icon|^icon|^icon|icons$|icons|masthead|media|meta|paywall|teaser|nav|outbrain|promo|related|scroll|share|sharing|shoutbox|sidebar|skyscraper|sponsor|shopping|tags|tool|widget|video-player|video|jw-player|modal|carousel|overlay|byline/i,
-    extraneous: /print|affiliate|archive|button|comment|controls|discuss|e[\-]?mail|meta|icons|share|reply|all|login|sign|single|utility|icons|nav|teaser|video-player|jw-player|modal|video|paidcontent|carousel|overlay|social/i,
+    extraneous: /print|affiliate|archive|button|comment|controls|discuss|e[\-]?mail|meta|icons|share|reply|all|login|sign|single|utility|icons|nav|teaser|video-player|jw-player|modal|video|paidcontent|carousel|overlay|social|topbar|article-meta/i,
     byline: /byline|author|dateline|credentials|writtenby|p-author/i,
     replaceFonts: /<(\/?)font[^>]*>/gi,
     normalize: /\s{2,}/g,
@@ -144,6 +144,9 @@ Readability.prototype = {
     // See: https://schema.org/Article
     jsonLdArticleTypes: /^Article|AdvertiserContentArticle|NewsArticle|AnalysisNewsArticle|AskPublicNewsArticle|BackgroundNewsArticle|OpinionNewsArticle|ReportageNewsArticle|ReviewNewsArticle|Report|SatiricalArticle|ScholarlyArticle|MedicalScholarlyArticle|SocialMediaPosting|BlogPosting|LiveBlogPosting|DiscussionForumPosting|TechArticle|APIReference$/
   },
+
+  NODES_TO_CLEAN_FIRST: ["object", "embed", "footer", "link", "aside", "nav", ".icons", ".byline", ".sub-nav", ".identity", ".logo", ".video-player", ".jw-player", ".video" ],
+  NODES_TO_CLEAN_SECOND: [ "iframe", "input", "textarea", "select", "button", "svg", "a[href^='#']"],
 
   UNLIKELY_ROLES: [ "menu", "menubar", "complementary", "navigation", "alert", "alertdialog", "dialog", "nav" ],
 
@@ -705,21 +708,9 @@ Readability.prototype = {
     // Clean out junk from the article content
     this._cleanConditionally(articleContent, "form");
     this._cleanConditionally(articleContent, "fieldset");
-    this._clean(articleContent, "object");
-    this._clean(articleContent, "embed");
-    this._clean(articleContent, "footer");
-    this._clean(articleContent, "link");
-    this._clean(articleContent, "aside");
-    this._clean(articleContent, "nav");
-
-    this._clean(articleContent, ".icons");
-    this._clean(articleContent, ".byline");
-    this._clean(articleContent, ".sub-nav");
-    this._clean(articleContent, ".identity");
-    this._clean(articleContent, ".logo");
-    this._clean(articleContent, ".video-player");
-    this._clean(articleContent, ".jw-player");
-    this._clean(articleContent, ".video");
+    this.NODES_TO_CLEAN_FIRST.forEach((el) => {
+      this._clean(articleContent, el);
+    });
 
     // Clean out elements with little content that have "share" in their id/class combinations from final top candidates,
     // which means we don't remove the top candidates even they have "share".
@@ -732,13 +723,10 @@ Readability.prototype = {
       });
     });
 
-    this._clean(articleContent, "iframe");
-    this._clean(articleContent, "input");
-    this._clean(articleContent, "textarea");
-    this._clean(articleContent, "select");
-    this._clean(articleContent, "button");
-    this._clean(articleContent, "svg");
-    this._clean(articleContent, "a[href^='#']");
+    this.NODES_TO_CLEAN_SECOND.forEach((el) => {
+      this._clean(articleContent, el);
+    });
+
     this._cleanHeaders(articleContent);
 
     // Do these last as the previous stuff may have removed junk
